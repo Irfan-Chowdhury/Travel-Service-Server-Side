@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
@@ -19,18 +19,26 @@ async function run(){
     try {
         const serviceCollection  = client.db('serviceReview').collection('services');
 
-        // Read
-        app.get('/services', async (req, res) => {
+        // Get 3 data Limit
+        app.get('/services-limit', async (req, res) => {
             const query = {};
             const cursor = serviceCollection.find(query);
             const services  = await cursor.limit(3).toArray();
             res.send(services);
         });
-        app.get('/all-service', async (req, res) => {
+        //Get All
+        app.get('/services', async (req, res) => {
             const query = {};
             const cursor = serviceCollection.find(query);
             const services  = await cursor.toArray();
             res.send(services);
+        });
+        // Show
+        app.get('/services/:id', async (req, res) => {
+            const id =  req.params.id;
+            const query = {_id: ObjectId(id) }
+            const service = await serviceCollection.findOne(query);
+            res.send(service);
         });
 
     } finally {
