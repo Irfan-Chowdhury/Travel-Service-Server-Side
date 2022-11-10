@@ -65,15 +65,23 @@ async function run(){
         app.get('/reviews/:serviceId', async (req, res) => {
             const serviceId =  req.params.serviceId;
             const query = {service_id: serviceId};
-            const cursor = reviewCollection.find(query);
+            const cursor = reviewCollection.find(query).sort({"_id":-1})
             const reviews = await cursor.toArray();
             res.send(reviews);
         });
 
-        // ADd Post
+        // Add Post
         app.post('/reviews', async (req, res) => {
             const review = req.body;
             const result =  await reviewCollection.insertOne(review);
+            res.send(result);
+        });
+
+        // Delete
+        app.delete('/review/:id', async (req, res) => {            
+            const id =  req.params.id;
+            const query = {_id: ObjectId(id) }
+            const result = await reviewCollection.deleteOne(query);
             res.send(result);
         });
 
