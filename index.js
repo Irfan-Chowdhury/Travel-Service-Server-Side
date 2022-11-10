@@ -3,6 +3,7 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
+var jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -15,10 +16,34 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.uys3vh8.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+function verifyJWT(req, res, next){
+    const authHeader = req.headers.authorization;
+    if(!authHeader){
+        res.status(401).send({message:'Unauthorized Access'})
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function(err, decoded){
+        if (err) {
+            res.status(403).send({message:'Forbidden Access'});
+        }
+        req.decoded = decoded;
+        next();
+    });
+    // console.log(req.headers.authorization);
+}
+
 async function run(){
     try {
         const serviceCollection  = client.db('serviceReview').collection('services');
         const reviewCollection  = client.db('serviceReview').collection('reviews');
+
+        // JWT
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            // console.log(user);
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET,{expiresIn:'1h'});
+            res.send({token});
+        })
 
             // =========================  Service ============================
 
@@ -55,6 +80,12 @@ async function run(){
         // =========================  Review ============================
         //Get All
         app.get('/reviews', async (req, res) => {
+            // const decoded = req.decoded;
+            // console.log('inside reviews API',decoded);
+            // if (decoded.email !== req.query.email) {
+            //     res.status(403).send({message:'Unauthorized Access'});
+            // }
+
             const query = {};
             const cursor = reviewCollection.find(query).sort({"_id":-1});
             const reviews  = await cursor.toArray();
@@ -62,7 +93,7 @@ async function run(){
         });
 
         // Get Reviews By ServiceId
-        app.get('/reviews/:serviceId', async (req, res) => {
+        app.get('/reviews/:serviceId',verifyJWT, async (req, res) => {
             const serviceId =  req.params.serviceId;
             const query = {service_id: serviceId};
             const cursor = reviewCollection.find(query).sort({"_id":-1})
@@ -84,6 +115,23 @@ async function run(){
             const result = await reviewCollection.deleteOne(query);
             res.send(result);
         });
+
+        // Update
+        app.put('/review/:id', async (req, res) => {
+            const id =  req.params.id;
+            const filter = {_id: ObjectId(id)};
+            const customerReview = req.body;
+            const option = {upsert:true};
+            const updateUser = {
+                $set : {
+                    review: customerReview.review,
+                }
+            }
+            const result = await reviewCollection.updateOne(filter, updateUser,option);
+            
+            const singleReview = await reviewCollection.findOne(filter);
+            res.send(singleReview);
+        })
 
     } finally {
         
