@@ -85,7 +85,6 @@ async function run(){
             // if (decoded.email !== req.query.email) {
             //     res.status(403).send({message:'Unauthorized Access'});
             // }
-
             const query = {};
             const cursor = reviewCollection.find(query).sort({"_id":-1});
             const reviews  = await cursor.toArray();
